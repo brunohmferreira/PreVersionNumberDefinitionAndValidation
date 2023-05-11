@@ -1,0 +1,10 @@
+{
+  "name": "versionnumberdefinitionandvalidationdecorator",
+  "version": "1.0.0",
+  "description": "Defines the version number and validates if downgrading or duplications are occurring",
+  "main": "index.js",
+  "scripts": {},
+  "keywords": [],
+  "author": "Bruno Ferreira",
+  "license": "ISC"
+}

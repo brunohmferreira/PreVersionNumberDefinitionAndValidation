@@ -1,0 +1,35 @@
+{
+    "manifestVersion": 1,
+    "id": "versionnumberdefinitionandvalidationdecorator",
+    "name": "Version Number: Definition And Validation",
+    "version": "1.0.0",
+    "publisher": "BrunoHenriqueMendesFerreira",
+    "targets": [
+        {
+            "id": "Microsoft.VisualStudio.Services"
+        }
+    ],    
+    "description": "Defines the version number and validates if downgrading or duplications are occurring",
+    "categories": [
+        "Azure Pipelines"
+    ],
+    "contributions": [
+        {
+            "id": "version-number-definition-validation-task",
+            "type": "ms.azure-pipelines.pipeline-decorator",
+            "targets": [
+                "ms.azure-pipelines-agent-job.pre-job-tasks"
+            ],
+            "properties": {
+                "template": "version-number-definition-validation-decorator.yml"
+            }
+        }
+    ],
+    "files": [
+        {
+            "path": "version-number-definition-validation-decorator.yml",
+            "addressable": true,
+            "contentType": "text/plain"
+        }
+    ]
+}

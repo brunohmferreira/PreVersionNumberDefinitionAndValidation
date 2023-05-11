@@ -1,0 +1,188 @@
+steps:
+- ${{ if and(eq(variables['Decorator.VersionNumberDefinitionAndValidation.Enabled'], True) }}:   
+  - task: PowerShell@2
+    displayName: 'Version Number: definition and validation - step: clone repository (injected from decorator)'
+    inputs:
+      workingDirectory: '$(System.DefaultWorkingDirectory)'
+      targetType: 'inline'
+      script: |
+        echo "before cloning"
+        dir
+
+        mkdir _git
+        cd _git
+        echo "after create _git folder"
+        dir
+
+        $RepoPartialUri = "$(System.TeamFoundationCollectionUri)$(System.TeamProject)/_git/$(Build.Repository.Name)".SubString(8)
+        echo "Repositorio https://$RepoPartialUri"
+
+        git clone "https://$(System.AccessToken)@$RepoPartialUri"
+
+  - task: PowerShell@2
+    displayName: 'Version Number: definition and validation - step: define latest version from origin/master (injected from decorator)'
+    inputs:
+      workingDirectory: '$(System.DefaultWorkingDirectory)/_git/$(Build.Repository.Name)'
+      targetType: 'inline'
+      script: |
+        #output:
+        #   $Version_Latest, $Version_Latest_MajorNumber, $Version_Latest_MinorNumber, $Version_Latest_PatchNumber, $Version_Latest_BuildNumber
+
+        dir
+
+        $Version_Latest_String = $(git describe --all --abbrev=0 --match [0-9]*.[0-9]*.[0-9]* origin/master)
+        $Version_Latest_Valid = $Version_Latest_String -match "(^|[^0-9.])(?<MajorNumber>[0-9]+)\.(?<MinorNumber>[0-9]+)\.(?<PatchNumber>[0-9]+)(\.(?<BuildNumber>[0-9]+)){0,1}($|[^0-9.])"
+
+        if(-not $Version_Latest_Valid){
+            Write-Error "Latest Version Number $Version_Latest_String is invalid. Was expected a version number with four integers, like: 1.2.3.4 ou 2.54.0.451"
+            exit 1
+        }
+
+        $Version_Latest_MajorNumber = [int]$Matches['MajorNumber']
+        $Version_Latest_MinorNumber = [int]$Matches['MinorNumber']
+        $Version_Latest_PatchNumber = [int]$Matches['PatchNumber']
+        $Version_Latest_BuildNumber = if($null -eq $Matches['BuildNumber']) {1} else {[int]$Matches['BuildNumber']}
+        $Version_Latest = "$Version_Latest_MajorNumber.$Version_Latest_MinorNumber.$Version_Latest_PatchNumber.$Version_Latest_BuildNumber"
+
+        Write-Host "##vso[task.setvariable variable=Version_Latest;]$Version_Latest"
+        Write-Host "##vso[task.setvariable variable=Version_Latest_MajorNumber;]$Version_Latest_MajorNumber"
+        Write-Host "##vso[task.setvariable variable=Version_Latest_MinorNumber;]$Version_Latest_MinorNumber"
+        Write-Host "##vso[task.setvariable variable=Version_Latest_PatchNumber;]$Version_Latest_PatchNumber"
+        Write-Host "##vso[task.setvariable variable=Version_Latest_BuildNumber;]$Version_Latest_BuildNumber"
+
+        Write-Output "Latest Version: $Version_Latest"
+
+  - task: PowerShell@2
+    displayName: 'Version Number: definition And validation - step: define next version from $(Build.SourceBranchName) (injected from decorator)'
+    inputs:
+      workingDirectory: '$(System.DefaultWorkingDirectory)/_git/$(Build.Repository.Name)'
+      targetType: 'inline'
+      script: |
+        #input: $(Build.SourceBranchName), $(Version_Next_BuildNumber)
+        #output:
+        #   $Version_Next, $Version_Next_MajorNumber, $Version_Next_MinorNumber, $Version_Next_PatchNumber
+
+        Write-Output "Looking for a Semantic Version (SemVer) Number at the branch full name."
+
+        dir
+
+        $Version_Next_String = "$(Build.SourceBranchName)"
+        $Version_Next_Valid = $Version_Next_String -match "(^|[^0-9.])(?<MajorNumber>[0-9]+)\.(?<MinorNumber>[0-9]+)\.(?<PatchNumber>[0-9]+)($|[^0-9.])"
+        
+        if(-not $Version_Next_Valid){
+            Write-Error "Semantic Version (SemVer) was not provided in the branch name. Please make sure your branch name has a SemVer number with three numbers only in order to proceed. The received text was '$Version_Next_String'. Was expected some text like: '1.2.3' or 'release/1.2.3/blah-blah-blah' "
+            exit 1
+        }
+        
+        $Version_Next_MajorNumber = [int]$Matches['MajorNumber']
+        $Version_Next_MinorNumber = [int]$Matches['MinorNumber']
+        $Version_Next_PatchNumber = [int]$Matches['PatchNumber']
+        $Version_Next = "{0:d2}.{1:d3}.{2:d3}.{3}" -f $Version_Next_MajorNumber, $Version_Next_MinorNumber, $Version_Next_PatchNumber, $(Version_Next_BuildNumber)
+
+        #Adicionado Build.Liberacao.Versao para manter compatibilidade com pipelines antigos.
+        Write-Host "##vso[task.setvariable variable=Build.Liberacao.Versao;]$Version_Next"
+        Write-Host "##vso[task.setvariable variable=Version_Next;]$Version_Next"
+        Write-Host "##vso[task.setvariable variable=Version_Next_MajorNumber;]$Version_Next_MajorNumber"
+        Write-Host "##vso[task.setvariable variable=Version_Next_MinorNumber;]$Version_Next_MinorNumber"
+        Write-Host "##vso[task.setvariable variable=Version_Next_PatchNumber;]$Version_Next_PatchNumber"
+
+        Write-Output "Next Version: $Version_Next"
+
+  - task: PowerShell@2
+    displayName: 'Version Number: definition and validation - step: validate if downgrading or duplications are occurring (injected from decorator)'
+    inputs:
+      workingDirectory: '$(System.DefaultWorkingDirectory)/_git/$(Build.Repository.Name)'
+      targetType: 'inline'
+      script: |
+        #inputs: 
+        #   $(Version_Next_BlockDowngradeDuplicate) = $true
+        #   $(Version_Latest_MajorNumber)=0; $(Version_Latest_MinorNumber)=0; $(Version_Latest_PatchNumber)=0; $(Version_Latest_BuildNumber)=0
+        #   $(Version_Next_MajorNumber)=0; $(Version_Next_MinorNumber)=0; $(Version_Next_PatchNumber)=0; $(Version_Next_BuildNumber)=0
+        
+        dir
+
+        Write-Output "Version_Latest: $(Version_Latest_MajorNumber).$(Version_Latest_MinorNumber).$(Version_Latest_PatchNumber).$(Version_Latest_BuildNumber)"
+        Write-Output "Version_Next:   $(Version_Next_MajorNumber).$(Version_Next_MinorNumber).$(Version_Next_PatchNumber).$(Version_Next_BuildNumber)"
+
+        $Version_Next_IsDowngradingOrRepeatingVersionLatest = $false
+        $ErrorMessage = ""
+
+        if($(Version_Latest_MajorNumber) -gt $(Version_Next_MajorNumber)){
+            $Version_Next_IsDowngradingOrRepeatingVersionLatest = $true
+            $ErrorMessage = "Downgrade detected at Major Number: $(Version_Latest_MajorNumber) -> $(Version_Next_MajorNumber) "
+        }
+
+        if($(Version_Latest_MajorNumber) -eq $(Version_Next_MajorNumber)){
+            if($(Version_Latest_MinorNumber) -gt $(Version_Next_MinorNumber)){
+                $Version_Next_IsDowngradingOrRepeatingVersionLatest = $true
+                $ErrorMessage = "Downgrade detected at Minor Number: $(Version_Latest_MinorNumber) -> $(Version_Next_MinorNumber) "
+            }
+
+            if($(Version_Latest_MinorNumber) -eq $(Version_Next_MinorNumber)){
+                if($(Version_Latest_PatchNumber) -gt $(Version_Next_PatchNumber)){
+                    $Version_Next_IsDowngradingOrRepeatingVersionLatest = $true
+                    $ErrorMessage = "Downgrade detected at Patch Number: $(Version_Latest_PatchNumber) -> $(Version_Next_PatchNumber) "
+                }
+
+                if($(Version_Latest_PatchNumber) -eq $(Version_Next_PatchNumber)){
+                    if($(Version_Latest_BuildNumber) -ge $(Version_Next_BuildNumber)){
+                        $Version_Next_IsDowngradingOrRepeatingVersionLatest = $true
+                        $ErrorMessage = "Downgrade or duplication detected at Build Number: $(Version_Latest_BuildNumber) -> $(Version_Next_BuildNumber) "
+                    }
+                }
+            }
+        }
+
+        if($Version_Next_IsDowngradingOrRepeatingVersionLatest)
+        {
+            if($(Version_Next_BlockDowngradeDuplicate))
+            {
+                Throw $ErrorMessage
+            } else {
+                Write-Warning $ErrorMessage
+                Write-Warning "Ignoring Version. Downgrade or Duplication detection."
+                exit 0
+            }
+        }
+
+        Write-Output "Version Downgrade and Duplication validation passed!"
+
+  - task: PowerShell@2
+    displayName: 'Version Number: definition and validation - step: redefine build number (injected from decorator)'
+    inputs:
+      workingDirectory: '$(System.DefaultWorkingDirectory)/_git/$(Build.Repository.Name)'
+      targetType: 'inline'
+      script: |
+        #inputs: 
+        #   $Version_Next = "0.0.0.1"
+        #output:
+        #   $Build.BuildNumber (update)
+
+        dir
+
+        Write-Output "Build.BuildNumber: $(Version_Next)"
+        Write-Host "##vso[build.updatebuildnumber]$(Version_Next)"
+
+  - task: PowerShell@2
+    displayName: 'Version Number: definition and validation - step: clean folder (injected from decorator)'
+    condition: succeededOrFailed()
+    inputs:
+      workingDirectory: '$(System.DefaultWorkingDirectory)'
+      targetType: 'inline'
+      script: |
+        echo "before cleaning"
+        dir
+
+        if ('$(Agent.OS)' -eq 'Linux')
+        {
+          echo "Removing folder in Linux"
+          rm -rf _git
+        }
+        else
+        {
+          echo "Removing folder in Windows"
+          rm -r -force _git
+        }
+
+        echo "after cleaning"
+        dir
