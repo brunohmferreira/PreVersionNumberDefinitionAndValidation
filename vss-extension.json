@@ -2,7 +2,7 @@
     "manifestVersion": 1,
     "id": "versionnumberdefinitionandvalidationdecorator",
     "name": "Version Number: Definition And Validation",
-    "version": "1.0.0",
+    "version": "1.7.0",
     "publisher": "BrunoHenriqueMendesFerreira",
     "targets": [
         {
@@ -18,7 +18,7 @@
             "id": "version-number-definition-validation-task",
             "type": "ms.azure-pipelines.pipeline-decorator",
             "targets": [
-                "ms.azure-pipelines-agent-job.pre-job-tasks"
+                "ms.azure-pipelines-agent-job.post-checkout-tasks"
             ],
             "properties": {
                 "template": "version-number-definition-validation-decorator.yml"

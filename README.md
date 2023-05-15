@@ -58,4 +58,6 @@ For more info take a look at: https://docs.microsoft.com/en-us/azure/devops/exte
 ### Use the extension
 
 Once installed, you need to do the following steps to run the extension:
-- Create a variable called _Decorator.VersionNumberDefinitionAndValidation.Enabled_ and set it to _true_.
+- Create a variable called "Decorator.VersionNumberDefinitionAndValidation.Enabled" and set it to _true_.
+- Configure pipeline to not run shallow fetch at checkout.
+- Optional: create a variable "Version_Number_Format" to define the version number format. Default: "{0:d2}.{1:d3}.{2:d3}.{3}".
