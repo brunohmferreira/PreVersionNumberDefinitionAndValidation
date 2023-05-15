@@ -1,5 +1,5 @@
 steps:
-- ${{ if eq(variables['Decorator.VersionNumberDefinitionAndValidation.Enabled'], True) }}:  
+- ${{ if and(eq(variables['Decorator.VersionNumberDefinitionAndValidation.Enabled'], True), or(contains(variables['Build.SourceBranch'],'/releases/'), contains(variables['Build.SourceBranch'],'/hotfixes/'))) }}:  
   - task: PowerShell@2
     displayName: 'Create Version_Number_Format variable if it do not exist [Version Number: definition and validation](injected from decorator)'
     condition: eq(variables['Version_Number_Format'], '')

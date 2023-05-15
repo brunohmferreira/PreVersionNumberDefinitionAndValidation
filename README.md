@@ -59,6 +59,7 @@ For more info take a look at: https://docs.microsoft.com/en-us/azure/devops/exte
 
 Once installed, you need to do the following steps to run the extension:
 - Create a variable called "Decorator.VersionNumberDefinitionAndValidation.Enabled" and set it to _true_.
+- Run the pipeline from a branch that has "/releases/" or "/hotfixes/" in the name.
 - Configure pipeline to not run shallow fetch at checkout.
 - Optional: create a variable "Version_Number_Format" to define the version number format. Default: "{0:d2}.{1:d3}.{2:d3}.{3}".
 - Optional: create a variable "MajorNumber_max_delta" to define the maximum difference between the lastest and the next value of the major number considering the Semantic Versioning structure. Default: 0.
