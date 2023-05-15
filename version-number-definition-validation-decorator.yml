@@ -12,6 +12,28 @@ steps:
         Write-Output "Version number format: $Version_Number_Format"
 
   - task: PowerShell@2
+    displayName: 'Create MajorNumber_max_delta variable if it do not exist [Version Number: definition and validation](injected from decorator)'
+    condition: eq(variables['MajorNumber_max_delta'], '')
+    inputs:
+      workingDirectory: '$(Build.Repository.LocalPath)'
+      targetType: 'inline'
+      script: |
+        $MajorNumber_max_delta = 0
+        Write-Host "##vso[task.setvariable variable=MajorNumber_max_delta;]$MajorNumber_max_delta"
+        Write-Output "MajorNumber_max_delta: $MajorNumber_max_delta"
+
+  - task: PowerShell@2
+    displayName: 'Create MinorNumber_max_delta variable if it do not exist [Version Number: definition and validation](injected from decorator)'
+    condition: eq(variables['MinorNumber_max_delta'], '')
+    inputs:
+      workingDirectory: '$(Build.Repository.LocalPath)'
+      targetType: 'inline'
+      script: |
+        $MinorNumber_max_delta = 1
+        Write-Host "##vso[task.setvariable variable=MinorNumber_max_delta;]$MinorNumber_max_delta"
+        Write-Output "MinorNumber_max_delta: $MinorNumber_max_delta"
+
+  - task: PowerShell@2
     displayName: 'Define latest version from origin/master [Version Number: definition and validation](injected from decorator)'
     inputs:
       workingDirectory: '$(Build.Repository.LocalPath)'
@@ -91,7 +113,6 @@ steps:
       targetType: 'inline'
       script: |
         #inputs: 
-        #   $(Version_Next_BlockDowngradeDuplicate) = $true
         #   $(Version_Latest_MajorNumber)=0; $(Version_Latest_MinorNumber)=0; $(Version_Latest_PatchNumber)=0; $(Version_Latest_BuildNumber)=0
         #   $(Version_Next_MajorNumber)=0; $(Version_Next_MinorNumber)=0; $(Version_Next_PatchNumber)=0; $(Build.BuildId)=0
         
@@ -121,10 +142,10 @@ steps:
             }
 
             if($(Version_Latest_PatchNumber) -eq $(Version_Next_PatchNumber)){
-                if($(Version_Latest_BuildNumber) -ge $(Build.BuildId)){
-                  $Version_Next_IsDowngradingOrRepeatingVersionLatest = $true
-                  $ErrorMessage = "Downgrade or duplication detected at Build Number: $(Version_Latest_BuildNumber) -> $(Build.BuildId) "
-                }
+              if($(Version_Latest_BuildNumber) -ge $(Build.BuildId)){
+                $Version_Next_IsDowngradingOrRepeatingVersionLatest = $true
+                $ErrorMessage = "Downgrade or duplication detected at Build Number: $(Version_Latest_BuildNumber) -> $(Build.BuildId) "
+              }
             }
           }
         }
@@ -135,6 +156,53 @@ steps:
         }
 
         Write-Output "Version Downgrade and Duplication validation passed!"
+
+  - task: PowerShell@2
+    displayName: 'Validate if a super upgrade is occurring [Version Number: definition and validation](injected from decorator)'
+    inputs:
+      workingDirectory: '$(Build.Repository.LocalPath)'
+      targetType: 'inline'
+      script: |
+        #inputs: 
+        #   $(Version_Latest_MajorNumber)=0; $(Version_Latest_MinorNumber)=0; $(Version_Latest_PatchNumber)=0; $(Version_Latest_BuildNumber)=0
+        #   $(Version_Next_MajorNumber)=0; $(Version_Next_MinorNumber)=0; $(Version_Next_PatchNumber)=0; $(Build.BuildId)=0
+        #   $(MajorNumber_max_delta)=0; $(MinorNumber_max_delta)=1
+
+        dir 
+
+        Write-Output "Version_Latest: $(Version_Latest_MajorNumber).$(Version_Latest_MinorNumber).$(Version_Latest_PatchNumber).$(Version_Latest_BuildNumber)"
+        Write-Output "Version_Next:   $(Version_Next_MajorNumber).$(Version_Next_MinorNumber).$(Version_Next_PatchNumber).$(Build.BuildId)"
+
+        $Version_Next_IsSuperUpgrade = $false
+        $ErrorMessage = ""
+
+        if(($(Version_Next_MajorNumber) - $(Version_Latest_MajorNumber)) -gt $(MajorNumber_max_delta)){
+          $Version_Next_IsSuperUpgrade = $true
+          $max_major = $(Version_Latest_MajorNumber)+$(MajorNumber_max_delta)
+          $max_minor = $(Version_Latest_MinorNumber)+$(MinorNumber_max_delta)
+          $ErrorMessage = "Super upgrade detected at Major Number: $(Version_Latest_MajorNumber) -> $(Version_Next_MajorNumber). The maximum difference between the latest and next value is $(MajorNumber_max_delta). Was expected some version between $(Version_Latest_MajorNumber).$(Version_Latest_MinorNumber).$(Version_Latest_PatchNumber) and $max_major.$max_minor.999 "
+        } elseif($(Version_Next_MinorNumber) -gt $(MinorNumber_max_delta)) {
+          $Version_Next_IsSuperUpgrade = $true
+          $max_major = $(Version_Latest_MajorNumber)+$(MajorNumber_max_delta)
+          $max_minor = $(Version_Latest_MinorNumber)+$(MinorNumber_max_delta)
+          $ErrorMessage = "Super upgrade detected at Minor Number: $(Version_Latest_MinorNumber) -> $(Version_Next_MinorNumber). The maximum difference between the latest and next value is $(MinorNumber_max_delta). Was expected some version between $(Version_Latest_MajorNumber).$(Version_Latest_MinorNumber).$(Version_Latest_PatchNumber) and $max_major.$max_minor.999"
+        }
+
+        if($(Version_Latest_MajorNumber) -eq $(Version_Next_MajorNumber)){
+          if(($(Version_Next_MinorNumber) - $(Version_Latest_MinorNumber)) -gt $(MinorNumber_max_delta)){
+            $Version_Next_IsSuperUpgrade = $true
+            $max_major = $(Version_Latest_MajorNumber)+$(MajorNumber_max_delta)
+            $max_minor = $(Version_Latest_MinorNumber)+$(MinorNumber_max_delta)
+            $ErrorMessage = "Super upgrade detected at Minor Number: $(Version_Latest_MinorNumber) -> $(Version_Next_MinorNumber). The maximum difference between the latest and next value is $(MinorNumber_max_delta). Was expected some version between $(Version_Latest_MajorNumber).$(Version_Latest_MinorNumber).$(Version_Latest_PatchNumber) and $max_major.$max_minor.999"
+          }
+        }
+
+        if($Version_Next_IsSuperUpgrade){
+          echo "##vso[task.logissue type=error] $ErrorMessage"
+          Throw $ErrorMessage
+        }
+
+        Write-Output "Version super upgrade validation passed!"
 
   - task: PowerShell@2
     displayName: 'Redefine build number [Version Number: definition and validation](injected from decorator)'
