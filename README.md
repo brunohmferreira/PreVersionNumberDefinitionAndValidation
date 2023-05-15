@@ -18,7 +18,7 @@ There are 2 types of Basic Decorators in this repo:
   - When running in YAML pipelines, they are applied to ___both___ __Jobs__ and __Deployment Jobs__
 - __Release__: The Decorators in this folder work ___only___ with the Classic Release pipelines.
 
-This project focus on a Build type and it runs before any other task in the pipeline.
+This project focus on a Build type and it runs after checkout in the pipeline.
 
 ## Getting Started
 
